@@ -1,0 +1,11 @@
+{
+  "name": "broadcast-popup-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "preview": "node server.mjs",
+    "convert": "node scripts/timed-text-to-csv.mjs",
+    "render": "node scripts/render.mjs"
+  }
+}

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Broadcast Popup Studio</title>
+    <link rel="stylesheet" href="./styles.css?v=20260531-3" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="toolbar" aria-label="项目控制">
+        <div class="brand">
+          <span class="mark" aria-hidden="true"></span>
+          <div>
+            <h1>Broadcast Popup Studio</h1>
+            <p>字幕转换、校对、预览、导出</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button id="timedTextFileButton" type="button">导入时间戳</button>
+          <button id="csvFileButton" type="button">导入 CSV</button>
+          <button id="audioFileButton" type="button">导入音频</button>
+          <button id="renderButton" class="primary" type="button">导出视频</button>
+          <input id="timedTextFileInput" class="file-input" type="file" accept=".txt,.srt,.vtt,text/plain,text/vtt" />
+          <input id="csvInput" class="file-input" type="file" accept=".csv,text/csv" />
+          <input id="audioInput" class="file-input" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.mp4" />
+        </div>
+      </section>
+
+      <div id="fileModeNotice" class="file-mode-notice" hidden>
+        当前是直接打开 index.html：导入和预览可用；保存、导入音频到项目、导出视频请双击 open-studio.command。
+      </div>
+
+      <section class="studio-grid">
+        <section class="source-panel" aria-label="时间戳文本">
+          <div class="panel-heading">
+            <h2>时间戳文本</h2>
+            <span id="sourceStatus">input/timed-text.txt</span>
+          </div>
+          <textarea id="timedTextInput" spellcheck="false" placeholder="00:00:01.200 台词"></textarea>
+          <div class="panel-actions">
+            <button id="convertButton" class="primary" type="button">转换成 CSV</button>
+            <button id="loadSampleButton" type="button">载入示例</button>
+          </div>
+        </section>
+
+        <section class="stage-panel" aria-label="视频预览">
+          <div id="stage" class="stage">
+            <div class="stage-bg"></div>
+            <div class="program-bar">
+              <div class="on-air">
+                <span></span>
+                ON AIR
+              </div>
+              <div id="timeLabel" class="time-label">00:00.000</div>
+            </div>
+
+            <div class="signal">
+              <div class="signal-title">RADIO TRANSLATION</div>
+              <div id="waveform" class="waveform" aria-hidden="true"></div>
+            </div>
+
+            <div id="popupLayer" class="popup-layer"></div>
+
+            <div class="lower-third">
+              <span id="statusText">正在读取 input/script.csv</span>
+            </div>
+          </div>
+
+          <div class="playbar" aria-label="播放控制">
+            <button id="playButton" class="primary" type="button">播放</button>
+            <button id="restartButton" type="button">重来</button>
+            <input id="scrubber" class="scrubber" type="range" min="0" max="20.4" value="0" step="0.01" />
+          </div>
+        </section>
+      </section>
+
+      <section class="editor-panel" aria-label="CSV 编辑">
+        <div class="panel-heading">
+          <h2>CSV 编辑</h2>
+          <span id="lineCount">0 句</span>
+        </div>
+        <div class="editor-actions">
+          <button id="saveCsvButton" class="primary" type="button">保存 CSV</button>
+          <button id="downloadCsvButton" type="button">下载 CSV</button>
+          <button id="copyCsvButton" type="button">复制 CSV</button>
+          <a id="videoLink" class="video-link is-hidden" href="./output/broadcast-popup.mp4" download>下载视频</a>
+        </div>
+        <div id="lineList" class="line-list"></div>
+      </section>
+
+      <audio id="audio" preload="metadata">
+        <source src="./input/audio.m4a" type="audio/mp4" />
+        <source src="./input/audio.mp3" type="audio/mpeg" />
+      </audio>
+    </main>
+
+    <script src="./app.js?v=20260531-3" defer></script>
+  </body>
+</html>
