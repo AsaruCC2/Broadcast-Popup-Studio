@@ -13,7 +13,7 @@ clean_path() {
   print -r -- "$raw"
 }
 
-echo "Timed text path: press Return for input/timed-text.txt, or drag an .srt/.vtt/.txt file here."
+echo "Timed text path: press Return for input/timed-text.txt, or drag an .srt/.vtt/.sbv/.txt file here."
 read -r INPUT_PATH
 INPUT_PATH="$(clean_path "$INPUT_PATH")"
 

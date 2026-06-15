@@ -2,7 +2,7 @@
 cd "$(dirname "$0")"
 
 PORT="${PORT:-4173}"
-URL="http://127.0.0.1:${PORT}/?v=20260531-3"
+URL="http://127.0.0.1:${PORT}/?v=20260615-1"
 
 if curl -fsS "http://127.0.0.1:${PORT}" >/dev/null 2>&1; then
   open "$URL"

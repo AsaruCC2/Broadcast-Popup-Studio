@@ -4,7 +4,11 @@ import {fileURLToPath} from "node:url";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const args = process.argv.slice(2);
-const inputPath = resolve(root, args[0] || "input/timed-text.txt");
+if (!args[0]) {
+  fail("Usage: npm run convert -- path/to/subtitles.srt [input/script.csv]");
+}
+
+const inputPath = resolve(root, args[0]);
 const outputPath = resolve(root, args[1] || "input/script.csv");
 const speaker = process.env.SPEAKER || "RADIO";
 const defaultDuration = Number(process.env.DEFAULT_DURATION || 4);
@@ -50,20 +54,18 @@ function parseCueBlocks(source) {
       .map((line) => line.trim())
       .filter(Boolean);
 
-    const timingIndex = lines.findIndex((line) => line.includes("-->"));
+    const timingIndex = lines.findIndex((line) => matchCueTimingLine(line));
     if (timingIndex === -1) continue;
 
-    const [left, right] = lines[timingIndex].split(/-->/);
-    const startText = extractTime(left);
-    const endText = extractTime(right);
-    if (!startText || !endText) continue;
+    const timing = matchCueTimingLine(lines[timingIndex]);
+    if (!timing) continue;
 
     const ja = cleanCueText(lines.slice(timingIndex + 1).join(" "));
     if (!ja) continue;
 
     rows.push({
-      start: parseTime(startText),
-      end: parseTime(endText),
+      start: parseTime(timing.startText),
+      end: parseTime(timing.endText),
       ja,
       zh: "",
       speaker,
@@ -71,6 +73,26 @@ function parseCueBlocks(source) {
   }
 
   return rows;
+}
+
+function matchCueTimingLine(line) {
+  if (line.includes("-->")) {
+    const [left, right] = line.split(/-->/);
+    const startText = extractTime(left);
+    const endText = extractTime(right);
+    return startText && endText ? {startText, endText} : null;
+  }
+
+  const sbvPattern = new RegExp(
+    String.raw`^\s*(${TIME_PATTERN})\s*,\s*(${TIME_PATTERN})\s*$`,
+    "u"
+  );
+  const match = line.match(sbvPattern);
+  if (!match) return null;
+  return {
+    startText: match[1],
+    endText: match[2],
+  };
 }
 
 function parsePlainTimestampLines(source) {
@@ -173,7 +195,7 @@ function normalizeRows(rows) {
 
 function matchRangeLine(line) {
   const pattern = new RegExp(
-    String.raw`^\s*\[?(${TIME_PATTERN})\]?\s*(?:-->|[-–—])\s*\[?(${TIME_PATTERN})\]?\s+(.+)$`,
+    String.raw`^\s*\[?(${TIME_PATTERN})\]?\s*(?:-->|[-–—]|,)\s*\[?(${TIME_PATTERN})\]?\s+(.+)$`,
     "u"
   );
   const match = line.match(pattern);

@@ -1,51 +1,63 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-Hant">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Broadcast Popup Studio</title>
-    <link rel="stylesheet" href="./styles.css?v=20260531-3" />
+    <link rel="stylesheet" href="./styles.css?v=20260615-1" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="toolbar" aria-label="项目控制">
+      <section class="toolbar" aria-label="Project controls" data-i18n-aria-label="aria.projectControls">
         <div class="brand">
           <span class="mark" aria-hidden="true"></span>
           <div>
             <h1>Broadcast Popup Studio</h1>
-            <p>字幕转换、校对、预览、导出</p>
+            <p data-i18n="app.tagline">字幕轉換、校對、預覽、匯出</p>
           </div>
         </div>
 
         <div class="controls">
-          <button id="timedTextFileButton" type="button">导入时间戳</button>
-          <button id="csvFileButton" type="button">导入 CSV</button>
-          <button id="audioFileButton" type="button">导入音频</button>
-          <button id="renderButton" class="primary" type="button">导出视频</button>
-          <input id="timedTextFileInput" class="file-input" type="file" accept=".txt,.srt,.vtt,text/plain,text/vtt" />
-          <input id="csvInput" class="file-input" type="file" accept=".csv,text/csv" />
+          <label class="language-control">
+            <span data-i18n="language.label">語言</span>
+            <select id="languageSelect" aria-label="Language" data-i18n-aria-label="language.aria">
+              <option value="zh-Hant">繁體中文</option>
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <button id="timedTextFileButton" type="button" data-i18n="toolbar.importSubtitles">匯入字幕 / CSV</button>
+          <button id="audioFileButton" type="button" data-i18n="toolbar.importAudio">匯入音訊</button>
+          <button id="renderButton" class="primary" type="button" data-i18n="toolbar.exportVideo">匯出影片</button>
+          <button id="cancelRenderButton" class="danger is-hidden" type="button" data-i18n="toolbar.cancelExport">終止匯出</button>
+          <input id="timedTextFileInput" class="file-input" type="file" accept=".srt,.vtt,.sbv,.txt,.csv,application/x-subrip,text/plain,text/vtt,text/x-sbv,application/x-subviewer,text/csv" />
           <input id="audioInput" class="file-input" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.mp4" />
+          <input id="backgroundImageInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" />
         </div>
       </section>
 
       <div id="fileModeNotice" class="file-mode-notice" hidden>
-        当前是直接打开 index.html：导入和预览可用；保存、导入音频到项目、导出视频请双击 open-studio.command。
+        <span data-i18n="notice.fileMode">目前是直接開啟 index.html：匯入和預覽可用；儲存、匯入音訊到專案、匯出影片請雙擊 open-studio.command。</span>
       </div>
 
       <section class="studio-grid">
-        <section class="source-panel" aria-label="时间戳文本">
+        <section class="source-panel" aria-label="Subtitle file and timed text" data-i18n-aria-label="aria.subtitleSource">
           <div class="panel-heading">
-            <h2>时间戳文本</h2>
-            <span id="sourceStatus">input/timed-text.txt</span>
+            <div>
+              <h2 data-i18n="source.title">字幕檔案 / 時間戳文字</h2>
+              <p class="format-hint">SRT / VTT / SBV / TXT / CSV</p>
+            </div>
+            <span id="sourceStatus">未匯入</span>
           </div>
-          <textarea id="timedTextInput" spellcheck="false" placeholder="00:00:01.200 台词"></textarea>
+          <textarea id="timedTextInput" spellcheck="false" placeholder="00:00:01.200 台詞" data-i18n-placeholder="source.placeholder"></textarea>
           <div class="panel-actions">
-            <button id="convertButton" class="primary" type="button">转换成 CSV</button>
-            <button id="loadSampleButton" type="button">载入示例</button>
+            <button id="timedTextFilePanelButton" type="button" data-i18n="source.chooseFile">選擇字幕 / CSV</button>
+            <button id="convertButton" class="primary" type="button" data-i18n="source.convertCsv">轉換成 CSV</button>
+            <button id="loadSampleButton" type="button" data-i18n="source.loadSample">載入範例</button>
           </div>
         </section>
 
-        <section class="stage-panel" aria-label="视频预览">
+        <section class="stage-panel" aria-label="Video preview" data-i18n-aria-label="aria.videoPreview">
           <div id="stage" class="stage">
             <div class="stage-bg"></div>
             <div class="program-bar">
@@ -64,38 +76,131 @@
             <div id="popupLayer" class="popup-layer"></div>
 
             <div class="lower-third">
-              <span id="statusText">正在读取 input/script.csv</span>
+              <span id="statusText">請匯入字幕 / CSV 和音訊</span>
             </div>
           </div>
 
-          <div class="playbar" aria-label="播放控制">
-            <button id="playButton" class="primary" type="button">播放</button>
-            <button id="restartButton" type="button">重来</button>
+          <div class="playbar" aria-label="Playback controls" data-i18n-aria-label="aria.playbackControls">
+            <button id="playButton" class="primary" type="button" data-i18n="play.play">播放</button>
+            <button id="restartButton" type="button" data-i18n="play.restart">重來</button>
             <input id="scrubber" class="scrubber" type="range" min="0" max="20.4" value="0" step="0.01" />
+            <div class="subtitle-size-control" role="radiogroup" aria-label="Subtitle size" data-i18n-aria-label="aria.subtitleSize">
+              <span class="subtitle-size-label" data-i18n="subtitleSize.label">字幕大小</span>
+              <label>
+                <input type="radio" name="subtitleSize" value="small" />
+                <span data-i18n="subtitleSize.small">小</span>
+              </label>
+              <label>
+                <input type="radio" name="subtitleSize" value="medium" />
+                <span data-i18n="subtitleSize.medium">中</span>
+              </label>
+              <label>
+                <input type="radio" name="subtitleSize" value="large" checked />
+                <span data-i18n="subtitleSize.large">大</span>
+              </label>
+              <label>
+                <input type="radio" name="subtitleSize" value="xlarge" />
+                <span data-i18n="subtitleSize.xlarge">特大</span>
+              </label>
+            </div>
+            <label class="subtitle-lead-control">
+              <span data-i18n="subtitleLead.label">字幕提前</span>
+              <input id="subtitleLeadInput" type="number" min="-5" max="5" step="0.1" value="0" inputmode="decimal" />
+              <span data-i18n="subtitleLead.unit">秒</span>
+            </label>
+          </div>
+
+          <div class="visual-controls" aria-label="Visual settings" data-i18n-aria-label="aria.visualSettings">
+            <div class="segmented-control" role="radiogroup" aria-label="Video ratio" data-i18n-aria-label="aria.videoRatio">
+              <span class="control-label" data-i18n="videoRatio.label">比例</span>
+              <label>
+                <input type="radio" name="videoRatio" value="16:9" checked />
+                <span>16:9</span>
+              </label>
+              <label>
+                <input type="radio" name="videoRatio" value="9:16" />
+                <span>9:16</span>
+              </label>
+              <label>
+                <input type="radio" name="videoRatio" value="1:1" />
+                <span>1:1</span>
+              </label>
+              <label>
+                <input type="radio" name="videoRatio" value="4:5" />
+                <span>4:5</span>
+              </label>
+            </div>
+
+            <div class="segmented-control" role="radiogroup" aria-label="Background" data-i18n-aria-label="aria.background">
+              <span class="control-label" data-i18n="background.label">背景</span>
+              <label>
+                <input type="radio" name="backgroundMode" value="grid" checked />
+                <span data-i18n="background.grid">預設</span>
+              </label>
+              <label>
+                <input type="radio" name="backgroundMode" value="color" />
+                <span data-i18n="background.color">純色</span>
+              </label>
+              <label>
+                <input type="radio" name="backgroundMode" value="image" />
+                <span data-i18n="background.image">圖片</span>
+              </label>
+            </div>
+
+            <label class="color-control">
+              <span data-i18n="background.colorPicker">背景色</span>
+              <input id="backgroundColorInput" type="color" value="#202124" />
+            </label>
+
+            <button id="backgroundImageButton" type="button" data-i18n="background.uploadImage">上傳背景圖</button>
+            <label class="range-control">
+              <span data-i18n="background.imageSize">圖片大小</span>
+              <input id="backgroundScaleInput" type="range" min="80" max="220" step="5" value="100" />
+              <output id="backgroundScaleValue">100%</output>
+            </label>
+
+            <div class="segmented-control" role="radiogroup" aria-label="Subtitle style" data-i18n-aria-label="aria.subtitleStyle">
+              <span class="control-label" data-i18n="subtitleStyle.label">字幕風格</span>
+              <label>
+                <input type="radio" name="subtitleStyle" value="card" checked />
+                <span data-i18n="subtitleStyle.card">廣播卡片</span>
+              </label>
+              <label>
+                <input type="radio" name="subtitleStyle" value="note" />
+                <span data-i18n="subtitleStyle.note">彈窗便條</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="renderProgress" class="render-progress is-hidden" role="status" aria-live="polite">
+            <div class="render-progress-meta">
+              <span id="renderProgressLabel">準備匯出</span>
+              <span id="renderEtaLabel">剩餘時間 --:--</span>
+            </div>
+            <div class="render-progress-track" aria-hidden="true">
+              <span id="renderProgressBar"></span>
+            </div>
           </div>
         </section>
       </section>
 
-      <section class="editor-panel" aria-label="CSV 编辑">
+      <section class="editor-panel" aria-label="CSV editor" data-i18n-aria-label="aria.csvEditor">
         <div class="panel-heading">
-          <h2>CSV 编辑</h2>
+          <h2 data-i18n="editor.title">CSV 編輯</h2>
           <span id="lineCount">0 句</span>
         </div>
         <div class="editor-actions">
-          <button id="saveCsvButton" class="primary" type="button">保存 CSV</button>
-          <button id="downloadCsvButton" type="button">下载 CSV</button>
-          <button id="copyCsvButton" type="button">复制 CSV</button>
-          <a id="videoLink" class="video-link is-hidden" href="./output/broadcast-popup.mp4" download>下载视频</a>
+          <button id="saveCsvButton" class="primary" type="button" data-i18n="editor.saveCsv">儲存 CSV</button>
+          <button id="downloadCsvButton" type="button" data-i18n="editor.downloadCsv">下載 CSV</button>
+          <button id="copyCsvButton" type="button" data-i18n="editor.copyCsv">複製 CSV</button>
+          <a id="videoLink" class="video-link is-hidden" href="./output/broadcast-popup.mp4" download data-i18n="editor.downloadVideo">下載影片</a>
         </div>
         <div id="lineList" class="line-list"></div>
       </section>
 
-      <audio id="audio" preload="metadata">
-        <source src="./input/audio.m4a" type="audio/mp4" />
-        <source src="./input/audio.mp3" type="audio/mpeg" />
-      </audio>
+      <audio id="audio" preload="metadata"></audio>
     </main>
 
-    <script src="./app.js?v=20260531-3" defer></script>
+    <script src="./app.js?v=20260615-1" defer></script>
   </body>
 </html>

@@ -4,18 +4,34 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import {spawn} from "node:child_process";
 import {extname, join, normalize} from "node:path";
-import {fileURLToPath} from "node:url";
+import {fileURLToPath, pathToFileURL} from "node:url";
 
-const root = fileURLToPath(new URL(".", import.meta.url));
+const moduleRoot = fileURLToPath(new URL(".", import.meta.url));
+const assetRoot = normalize(process.env.BPS_ASSET_ROOT || moduleRoot);
+const dataRoot = normalize(process.env.BPS_DATA_ROOT || assetRoot);
 const port = Number(process.env.PORT || 4173);
-const inputDir = join(root, "input");
+const host = process.env.HOST || "127.0.0.1";
+const inputDir = join(dataRoot, "input");
+const outputDir = join(dataRoot, "output");
 const outputVideo = "output/broadcast-popup.mp4";
+const outputVideoPath = join(dataRoot, outputVideo);
+const tempOutputVideo = "output/broadcast-popup.in-progress.mp4";
+const tempOutputVideoPath = join(dataRoot, tempOutputVideo);
+const renderIntermediateFiles = [
+  tempOutputVideoPath,
+  join(dataRoot, "output/render-lines.json"),
+  join(dataRoot, "output/render-popup.ass"),
+];
+let activeRenderJob = null;
+let lastRenderJob = null;
+let renderJobSerial = 0;
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -31,31 +47,35 @@ const types = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
   ".webm": "video/webm"
 };
 
-const server = createServer(async (request, response) => {
-  const url = new URL(request.url || "/", `http://${request.headers.host}`);
+function createBroadcastServer() {
+  return createServer(async (request, response) => {
+    const url = new URL(request.url || "/", `http://${request.headers.host}`);
 
-  try {
-    if (url.pathname.startsWith("/api/")) {
-      await handleApi(request, response, url);
-      return;
+    try {
+      if (url.pathname.startsWith("/api/")) {
+        await handleApi(request, response, url);
+        return;
+      }
+
+      serveStatic(url, response);
+    } catch (error) {
+      response.writeHead(500, {"Content-Type": "text/plain; charset=utf-8"});
+      response.end(error.message || "Server error");
     }
-
-    serveStatic(url, response);
-  } catch (error) {
-    response.writeHead(500, {"Content-Type": "text/plain; charset=utf-8"});
-    response.end(error.message || "Server error");
-  }
-});
+  });
+}
 
 function serveStatic(url, response) {
   const decoded = decodeURIComponent(url.pathname);
   const relative = decoded === "/" ? "index.html" : decoded.slice(1);
-  const path = normalize(join(root, relative));
+  const baseRoot = /^(input|output)\//.test(relative) ? dataRoot : assetRoot;
+  const path = normalize(join(baseRoot, relative));
 
-  if (!path.startsWith(root) || !existsSync(path) || !statSync(path).isFile()) {
+  if (!path.startsWith(baseRoot) || !existsSync(path) || !statSync(path).isFile()) {
     response.writeHead(404, {"Content-Type": "text/plain; charset=utf-8"});
     response.end("Not found");
     return;
@@ -103,15 +123,80 @@ async function handleApi(request, response, url) {
     return;
   }
 
-  if (url.pathname === "/api/render" && request.method === "POST") {
-    const result = await renderVideo();
-    if (result.status !== 0) {
-      response.writeHead(500, {"Content-Type": "application/json; charset=utf-8"});
-      response.end(JSON.stringify({ok: false, error: result.output || "Render failed"}));
+  if (url.pathname === "/api/save-background" && request.method === "POST") {
+    const fileName = url.searchParams.get("name") || "background.png";
+    const extension = extname(fileName).toLowerCase();
+    const allowed = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+
+    if (!allowed.has(extension)) {
+      response.writeHead(400, {"Content-Type": "application/json; charset=utf-8"});
+      response.end(JSON.stringify({ok: false, error: "Unsupported background image type"}));
       return;
     }
 
-    sendJson(response, {ok: true, path: outputVideo});
+    const body = await readBody(request, 80 * 1024 * 1024);
+    mkdirSync(inputDir, {recursive: true});
+
+    for (const name of readdirSync(inputDir)) {
+      if (/^background\.(png|jpe?g|webp)$/i.test(name)) {
+        unlinkSync(join(inputDir, name));
+      }
+    }
+
+    const target = join(inputDir, `background${extension}`);
+    writeFileSync(target, body);
+    sendJson(response, {ok: true, path: `input/background${extension}`});
+    return;
+  }
+
+  if (url.pathname === "/api/render" && request.method === "POST") {
+    const body = await readBody(request, 1024 * 1024);
+    const options = parseJsonBody(body);
+    const ratio = normalizeVideoRatio(options.videoRatio);
+    const job = startRenderJob({
+      subtitleSize: normalizeSubtitleSize(options.subtitleSize),
+      subtitleLead: normalizeSubtitleLead(options.subtitleLead),
+      width: ratio.width,
+      height: ratio.height,
+      backgroundMode: normalizeBackgroundMode(options.backgroundMode),
+      backgroundColor: normalizeHexColor(options.backgroundColor),
+      backgroundScale: normalizeBackgroundScale(options.backgroundScale),
+      subtitleStyle: normalizeSubtitleStyle(options.subtitleStyle)
+    });
+    if (!job.ok) {
+      response.writeHead(409, {"Content-Type": "application/json; charset=utf-8"});
+      response.end(JSON.stringify(job));
+      return;
+    }
+
+    sendJson(response, {ok: true, jobId: job.id});
+    return;
+  }
+
+  if (url.pathname === "/api/render/status" && request.method === "GET") {
+    const job = findRenderJob(url.searchParams.get("id"));
+    if (!job) {
+      response.writeHead(404, {"Content-Type": "application/json; charset=utf-8"});
+      response.end(JSON.stringify({ok: false, error: "Render job not found"}));
+      return;
+    }
+
+    sendJson(response, serializeRenderJob(job));
+    return;
+  }
+
+  if (url.pathname === "/api/render/cancel" && request.method === "POST") {
+    const body = await readBody(request, 1024 * 1024);
+    const options = parseJsonBody(body);
+    const job = findRenderJob(options.jobId);
+    if (!job) {
+      response.writeHead(404, {"Content-Type": "application/json; charset=utf-8"});
+      response.end(JSON.stringify({ok: false, error: "Render job not found"}));
+      return;
+    }
+
+    cancelRenderJob(job);
+    sendJson(response, serializeRenderJob(job));
     return;
   }
 
@@ -139,24 +224,267 @@ function readBody(request, limit) {
   });
 }
 
-function renderVideo() {
-  return new Promise((resolve) => {
-    const child = spawn(process.execPath, ["scripts/render.mjs"], {
-      cwd: root,
-      env: process.env,
-    });
+function parseJsonBody(body) {
+  if (!body.length) return {};
+  try {
+    return JSON.parse(body.toString("utf8"));
+  } catch {
+    return {};
+  }
+}
 
-    let output = "";
-    const append = (chunk) => {
-      output += chunk.toString();
-      if (output.length > 20000) output = output.slice(-20000);
-    };
+function normalizeSubtitleSize(value) {
+  const size = Number(value);
+  return Number.isFinite(size) ? Math.min(80, Math.max(20, Math.round(size))) : 46;
+}
 
-    child.stdout.on("data", append);
-    child.stderr.on("data", append);
-    child.on("error", (error) => resolve({status: 1, output: error.message}));
-    child.on("close", (status) => resolve({status, output}));
+function normalizeSubtitleLead(value) {
+  const lead = Number(value);
+  return Number.isFinite(lead) ? Math.min(5, Math.max(-5, Math.round(lead * 10) / 10)) : 0;
+}
+
+function normalizeVideoRatio(value) {
+  const presets = {
+    "16:9": {width: 1920, height: 1080},
+    "9:16": {width: 1080, height: 1920},
+    "1:1": {width: 1080, height: 1080},
+    "4:5": {width: 1080, height: 1350},
+  };
+  return presets[value] || presets["16:9"];
+}
+
+function normalizeBackgroundMode(value) {
+  return ["grid", "color", "image"].includes(value) ? value : "grid";
+}
+
+function normalizeSubtitleStyle(value) {
+  return ["card", "note"].includes(value) ? value : "card";
+}
+
+function normalizeHexColor(value) {
+  const text = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : "#202124";
+}
+
+function normalizeBackgroundScale(value) {
+  const scale = Number(value);
+  return Number.isFinite(scale) ? Math.min(220, Math.max(80, Math.round(scale))) : 100;
+}
+
+function startRenderJob(options = {}) {
+  if (activeRenderJob && ["starting", "running", "canceling"].includes(activeRenderJob.state)) {
+    return {ok: false, error: "已有导出任务正在运行"};
+  }
+
+  mkdirSync(outputDir, {recursive: true});
+  cleanupRenderArtifacts();
+
+  const audioPath = findDefaultAudioPath();
+  const backgroundImagePath = findBackgroundImagePath();
+  const backgroundMode = options.backgroundMode === "image" && !backgroundImagePath ? "grid" : options.backgroundMode;
+  const id = `render-${Date.now()}-${renderJobSerial += 1}`;
+  const job = {
+    id,
+    ok: true,
+    state: "starting",
+    progress: 0,
+    durationSeconds: null,
+    outTimeSeconds: 0,
+    startedAt: Date.now(),
+    endedAt: null,
+    error: "",
+    output: "",
+    lineBuffer: "",
+    cancelRequested: false,
+    child: null,
+    killTimer: null,
+  };
+
+  const nodeExecutable = process.env.BPS_NODE_EXECUTABLE || process.execPath;
+  const renderScript = join(assetRoot, "scripts/render.mjs");
+  const csvPath = join(dataRoot, "input/script.csv");
+  const childEnv = {
+    ...process.env,
+    BPS_DATA_ROOT: dataRoot,
+    RENDER_PROGRESS: "1",
+    WIDTH: String(options.width || 1920),
+    HEIGHT: String(options.height || 1080),
+    SUBTITLE_SIZE: String(options.subtitleSize || 46),
+    SUBTITLE_LEAD: String(options.subtitleLead || 0),
+    SUBTITLE_STYLE: options.subtitleStyle || "card",
+    BACKGROUND_MODE: backgroundMode || "grid",
+    BACKGROUND_COLOR: options.backgroundColor || "#202124",
+    BACKGROUND_SCALE: String(options.backgroundScale || 100),
+    BACKGROUND_IMAGE: backgroundImagePath || "",
+  };
+
+  if (process.env.BPS_ELECTRON === "1") {
+    childEnv.ELECTRON_RUN_AS_NODE = "1";
+  }
+
+  const child = spawn(nodeExecutable, [renderScript, csvPath, audioPath, tempOutputVideoPath], {
+    cwd: assetRoot,
+    env: {
+      ...childEnv,
+    },
   });
+
+  job.child = child;
+  activeRenderJob = job;
+  lastRenderJob = job;
+
+  child.stdout.on("data", (chunk) => {
+    appendRenderOutput(job, chunk.toString());
+  });
+  child.stderr.on("data", (chunk) => {
+    appendRenderLog(job, chunk.toString());
+  });
+  child.on("error", (error) => {
+    job.state = "failed";
+    job.error = error.message;
+    finishRenderJob(job);
+  });
+  child.on("close", (status, signal) => {
+    if (job.killTimer) clearTimeout(job.killTimer);
+    if (job.lineBuffer.trim()) {
+      appendRenderOutput(job, "\n");
+    }
+
+    if (job.cancelRequested) {
+      job.state = "canceled";
+      job.progress = Math.min(job.progress, 0.99);
+      job.error = "导出已终止";
+      cleanupRenderArtifacts();
+    } else if (status === 0 && existsSync(tempOutputVideoPath)) {
+      try {
+        renameSync(tempOutputVideoPath, outputVideoPath);
+        job.state = "complete";
+        job.progress = 1;
+        job.path = outputVideo;
+      } catch (error) {
+        job.state = "failed";
+        job.error = error.message;
+        cleanupRenderArtifacts();
+      }
+    } else {
+      job.state = "failed";
+      job.error = job.output || `Render failed${signal ? ` (${signal})` : ""}`;
+      cleanupRenderArtifacts();
+    }
+
+    finishRenderJob(job);
+  });
+
+  job.state = "running";
+  return job;
+}
+
+function appendRenderOutput(job, text) {
+  job.lineBuffer += text;
+  const lines = job.lineBuffer.split(/\r?\n/);
+  job.lineBuffer = lines.pop() || "";
+
+  for (const line of lines) {
+    if (line.startsWith("PROGRESS ")) {
+      updateRenderProgress(job, line.slice("PROGRESS ".length));
+    } else {
+      appendRenderLog(job, `${line}\n`);
+    }
+  }
+}
+
+function appendRenderLog(job, text) {
+  job.output += text;
+  if (job.output.length > 30000) job.output = job.output.slice(-30000);
+}
+
+function updateRenderProgress(job, payloadText) {
+  try {
+    const payload = JSON.parse(payloadText);
+    const progress = Number(payload.progress);
+    const outTime = Number(payload.outTimeSeconds);
+    const duration = Number(payload.durationSeconds);
+    if (Number.isFinite(progress)) job.progress = Math.min(1, Math.max(0, progress));
+    if (Number.isFinite(outTime)) job.outTimeSeconds = outTime;
+    if (Number.isFinite(duration) && duration > 0) job.durationSeconds = duration;
+  } catch {
+    appendRenderLog(job, `PROGRESS ${payloadText}\n`);
+  }
+}
+
+function cancelRenderJob(job) {
+  if (!["starting", "running"].includes(job.state)) return;
+  job.cancelRequested = true;
+  job.state = "canceling";
+  job.error = "正在终止导出";
+
+  if (job.child && !job.child.killed) {
+    job.child.kill("SIGTERM");
+    job.killTimer = setTimeout(() => {
+      if (job.child && !job.child.killed) job.child.kill("SIGKILL");
+      cleanupRenderArtifacts();
+    }, 5000);
+  } else {
+    job.state = "canceled";
+    cleanupRenderArtifacts();
+    finishRenderJob(job);
+  }
+}
+
+function finishRenderJob(job) {
+  job.endedAt = Date.now();
+  job.child = null;
+  if (activeRenderJob?.id === job.id) activeRenderJob = null;
+}
+
+function findRenderJob(id) {
+  if (!id) return activeRenderJob || lastRenderJob;
+  if (activeRenderJob?.id === id) return activeRenderJob;
+  if (lastRenderJob?.id === id) return lastRenderJob;
+  return null;
+}
+
+function serializeRenderJob(job) {
+  const elapsedSeconds = ((job.endedAt || Date.now()) - job.startedAt) / 1000;
+  const progress = Math.min(1, Math.max(0, Number(job.progress) || 0));
+  const remainingSeconds = job.state === "running" && progress > 0.01
+    ? Math.max(0, elapsedSeconds * (1 - progress) / progress)
+    : null;
+
+  return {
+    ok: true,
+    jobId: job.id,
+    state: job.state,
+    progress,
+    percent: Math.round(progress * 100),
+    elapsedSeconds,
+    remainingSeconds,
+    durationSeconds: job.durationSeconds,
+    outTimeSeconds: job.outTimeSeconds,
+    path: job.path || "",
+    error: job.error || "",
+  };
+}
+
+function cleanupRenderArtifacts() {
+  for (const path of renderIntermediateFiles) {
+    try {
+      if (existsSync(path)) unlinkSync(path);
+    } catch {
+      // A file can disappear while a canceled FFmpeg process is closing.
+    }
+  }
+}
+
+function findDefaultAudioPath() {
+  const candidates = ["input/audio.m4a", "input/audio.mp3", "input/audio.wav", "input/audio.aac", "input/audio.mp4"];
+  const found = candidates.map((name) => join(dataRoot, name)).find((path) => existsSync(path));
+  return found || join(dataRoot, "input/audio.m4a");
+}
+
+function findBackgroundImagePath() {
+  const candidates = ["input/background.png", "input/background.jpg", "input/background.jpeg", "input/background.webp"];
+  return candidates.map((name) => join(dataRoot, name)).find((path) => existsSync(path)) || "";
 }
 
 function sendJson(response, payload) {
@@ -164,6 +492,30 @@ function sendJson(response, payload) {
   response.end(JSON.stringify(payload));
 }
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Broadcast popup preview: http://127.0.0.1:${port}`);
-});
+export function startServer(options = {}) {
+  const server = createBroadcastServer();
+  const listenPort = Number(options.port ?? port);
+  const listenHost = options.host || host;
+
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(listenPort, listenHost, () => {
+      server.off("error", reject);
+      const address = server.address();
+      const actualPort = typeof address === "object" && address ? address.port : listenPort;
+      resolve({
+        server,
+        host: listenHost,
+        port: actualPort,
+        url: `http://${listenHost}:${actualPort}`,
+        assetRoot,
+        dataRoot,
+      });
+    });
+  });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const runtime = await startServer();
+  console.log(`Broadcast popup preview: ${runtime.url}`);
+}

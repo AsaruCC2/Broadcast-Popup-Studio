@@ -1,11 +1,55 @@
 {
-  "name": "broadcast-popup-starter",
+  "name": "broadcast-popup-studio",
   "version": "0.1.0",
+  "description": "A local desktop tool for making popup subtitle videos from audio and timed text.",
   "private": true,
   "type": "module",
+  "main": "desktop/main.mjs",
   "scripts": {
+    "desktop": "electron .",
     "preview": "node server.mjs",
     "convert": "node scripts/timed-text-to-csv.mjs",
-    "render": "node scripts/render.mjs"
+    "render": "node scripts/render.mjs",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "studio.broadcast-popup.app",
+    "productName": "Broadcast Popup Studio",
+    "icon": "build/icon.png",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "index.html",
+      "app.js",
+      "styles.css",
+      "server.mjs",
+      "desktop/main.mjs",
+      "desktop/preload.cjs",
+      "scripts/render.mjs",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.video",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis", "zip"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }
