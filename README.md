@@ -22,28 +22,28 @@ Broadcast Popup Studio 是一款桌面软件，用来把音频文件和带时间
 
 ### 日本語
 
-配布版は GitHub Releases から入手する想定です。
+最新のテスト版は GitHub Releases からダウンロードできます。
 
-- macOS: `.dmg`
-- Windows: `.exe`
+- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
+- Windows `.exe`: 準備中
 
 現在のビルドはコード署名を行っていません。初回起動時に macOS または Windows のセキュリティ警告が表示される場合があります。
 
 ### English
 
-Packaged builds are intended to be distributed through GitHub Releases.
+The latest test build is available from GitHub Releases.
 
-- macOS: `.dmg`
-- Windows: `.exe`
+- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
+- Windows `.exe`: coming soon
 
 The current builds are not code-signed. macOS or Windows may show a security warning the first time the app is opened.
 
 ### 中文
 
-打包好的软件版本预计通过 GitHub Releases 发布。
+最新测试版可以从 GitHub Releases 下载。
 
-- macOS：`.dmg`
-- Windows：`.exe`
+- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
+- Windows `.exe`：准备中
 
 当前构建还没有做代码签名。第一次打开时，macOS 或 Windows 可能会显示安全提醒。
 
