@@ -136,7 +136,10 @@ const result = await runFfmpeg(
 
 if (result.error) fail(result.error.message);
 if (stopRequested) process.exit(130);
-if (result.status !== 0) process.exit(result.status || 1);
+if (result.status !== 0) {
+  const detail = result.stderr?.trim();
+  fail(detail || `FFmpeg exited with status ${result.status}`);
+}
 
 console.log(`Done: ${relative(outputPath)}`);
 
@@ -675,11 +678,11 @@ function assTime(seconds) {
 }
 
 function escapeFilterPath(path) {
-  return path
-    .replaceAll("\\", "\\\\")
+  const normalized = String(path).replaceAll("\\", "/");
+  return `'${normalized
     .replaceAll(":", "\\:")
     .replaceAll("'", "\\'")
-    .replaceAll(",", "\\,");
+    .replaceAll(",", "\\,")}'`;
 }
 
 function findDefaultAudio() {
