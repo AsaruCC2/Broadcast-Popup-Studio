@@ -24,8 +24,8 @@ Broadcast Popup Studio 是一款桌面软件，用来把音频文件和带时间
 
 最新のテスト版は GitHub Releases からダウンロードできます。
 
-- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
-- [Windows x64 `.exe`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-Setup-0.1.0-win-x64.exe)
+- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/desktop/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
+- [Windows x64 `.exe`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/desktop/Broadcast-Popup-Studio-Setup-0.1.0-win-x64.exe)
 
 現在のビルドはコード署名を行っていません。初回起動時に macOS または Windows のセキュリティ警告が表示される場合があります。
 各プラットフォームのテスト版は、更新タイミングが異なる場合があります。
@@ -34,8 +34,8 @@ Broadcast Popup Studio 是一款桌面软件，用来把音频文件和带时间
 
 The latest test build is available from GitHub Releases.
 
-- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
-- [Windows x64 `.exe`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-Setup-0.1.0-win-x64.exe)
+- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/desktop/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
+- [Windows x64 `.exe`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/desktop/Broadcast-Popup-Studio-Setup-0.1.0-win-x64.exe)
 
 The current builds are not code-signed. macOS or Windows may show a security warning the first time the app is opened.
 Test builds for each platform may be updated on different schedules.
@@ -44,8 +44,8 @@ Test builds for each platform may be updated on different schedules.
 
 最新测试版可以从 GitHub Releases 下载。
 
-- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
-- [Windows x64 `.exe`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/v0.1.0/Broadcast-Popup-Studio-Setup-0.1.0-win-x64.exe)
+- [macOS Apple Silicon `.dmg`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/desktop/Broadcast-Popup-Studio-0.1.0-mac-arm64.dmg)
+- [Windows x64 `.exe`](https://github.com/AsaruCC2/Broadcast-Popup-Studio/releases/download/desktop/Broadcast-Popup-Studio-Setup-0.1.0-win-x64.exe)
 
 当前构建还没有做代码签名。第一次打开时，macOS 或 Windows 可能会显示安全提醒。
 不同平台的测试包可能会按不同节奏更新。
