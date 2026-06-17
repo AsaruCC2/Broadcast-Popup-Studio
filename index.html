@@ -33,6 +33,7 @@
           <input id="timedTextFileInput" class="file-input" type="file" accept=".srt,.vtt,.sbv,.txt,.csv,application/x-subrip,text/plain,text/vtt,text/x-sbv,application/x-subviewer,text/csv" />
           <input id="audioInput" class="file-input" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.mp4" />
           <input id="backgroundImageInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" />
+          <input id="timedBackgroundInput" class="file-input" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" />
         </div>
       </section>
 
@@ -60,6 +61,7 @@
         <section class="stage-panel" aria-label="Video preview" data-i18n-aria-label="aria.videoPreview">
           <div id="stage" class="stage">
             <div class="stage-bg"></div>
+            <div id="timedBackgroundLayer" class="timed-background-layer" aria-hidden="true"></div>
             <div class="program-bar">
               <div class="on-air">
                 <span></span>
@@ -158,6 +160,14 @@
               <input id="backgroundScaleInput" type="range" min="80" max="220" step="5" value="100" />
               <output id="backgroundScaleValue">100%</output>
             </label>
+
+            <div class="timed-background-control">
+              <div class="timed-background-header">
+                <span data-i18n="timedBackground.label">定時背景</span>
+                <button id="timedBackgroundButton" type="button" data-i18n="timedBackground.add">加入圖片</button>
+              </div>
+              <div id="timedBackgroundList" class="timed-background-list" aria-live="polite"></div>
+            </div>
 
             <div class="segmented-control" role="radiogroup" aria-label="Subtitle style" data-i18n-aria-label="aria.subtitleStyle">
               <span class="control-label" data-i18n="subtitleStyle.label">字幕風格</span>

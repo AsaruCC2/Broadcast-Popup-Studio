@@ -32,6 +32,7 @@ const renderIntermediateFiles = [
 let activeRenderJob = null;
 let lastRenderJob = null;
 let renderJobSerial = 0;
+let timedBackgroundFileSerial = 0;
 
 const types = {
   ".html": "text/html; charset=utf-8",
@@ -149,6 +150,27 @@ async function handleApi(request, response, url) {
     return;
   }
 
+  if (url.pathname === "/api/save-timed-background" && request.method === "POST") {
+    const fileName = url.searchParams.get("name") || "timed-background.png";
+    const extension = extname(fileName).toLowerCase();
+    const allowed = new Set([".png", ".jpg", ".jpeg", ".webp"]);
+
+    if (!allowed.has(extension)) {
+      response.writeHead(400, {"Content-Type": "application/json; charset=utf-8"});
+      response.end(JSON.stringify({ok: false, error: "Unsupported timed background image type"}));
+      return;
+    }
+
+    const body = await readBody(request, 80 * 1024 * 1024);
+    mkdirSync(inputDir, {recursive: true});
+
+    const serial = `${Date.now()}-${timedBackgroundFileSerial += 1}`;
+    const target = join(inputDir, `timed-background-${serial}${extension}`);
+    writeFileSync(target, body);
+    sendJson(response, {ok: true, path: `input/timed-background-${serial}${extension}`});
+    return;
+  }
+
   if (url.pathname === "/api/render" && request.method === "POST") {
     const body = await readBody(request, 1024 * 1024);
     const options = parseJsonBody(body);
@@ -161,6 +183,7 @@ async function handleApi(request, response, url) {
       backgroundMode: normalizeBackgroundMode(options.backgroundMode),
       backgroundColor: normalizeHexColor(options.backgroundColor),
       backgroundScale: normalizeBackgroundScale(options.backgroundScale),
+      timedBackgrounds: normalizeTimedBackgrounds(options.timedBackgrounds),
       subtitleStyle: normalizeSubtitleStyle(options.subtitleStyle)
     });
     if (!job.ok) {
@@ -271,6 +294,27 @@ function normalizeBackgroundScale(value) {
   return Number.isFinite(scale) ? Math.min(220, Math.max(80, Math.round(scale))) : 100;
 }
 
+function normalizeTimedBackgrounds(value) {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const start = Number(item?.start);
+      const end = Number(item?.end);
+      const relativePath = String(item?.path || "").replace(/^\.\//, "");
+      const allowedPath = /^input\/timed-background-[^/]+\.(png|jpe?g|webp)$/i.test(relativePath);
+
+      return {
+        path: allowedPath ? relativePath : "",
+        start: Number.isFinite(start) ? Math.max(0, Math.round(start * 10) / 10) : 0,
+        end: Number.isFinite(end) ? Math.max(0, Math.round(end * 10) / 10) : 0,
+        scale: normalizeBackgroundScale(item?.scale),
+      };
+    })
+    .filter((item) => item.path && item.end > item.start)
+    .slice(0, 12);
+}
+
 function startRenderJob(options = {}) {
   if (activeRenderJob && ["starting", "running", "canceling"].includes(activeRenderJob.state)) {
     return {ok: false, error: "已有导出任务正在运行"};
@@ -316,6 +360,7 @@ function startRenderJob(options = {}) {
     BACKGROUND_COLOR: options.backgroundColor || "#202124",
     BACKGROUND_SCALE: String(options.backgroundScale || 100),
     BACKGROUND_IMAGE: backgroundImagePath || "",
+    TIMED_BACKGROUNDS: JSON.stringify(options.timedBackgrounds || []),
   };
 
   if (process.env.BPS_ELECTRON === "1") {

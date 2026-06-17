@@ -400,6 +400,34 @@ h2 {
   transform-origin: center;
 }
 
+.timed-background-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease-out;
+}
+
+.timed-background-layer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--timed-bg-image, none);
+  background-position: center;
+  background-size: cover;
+  transform: scale(var(--timed-bg-scale, 1));
+  transform-origin: center;
+}
+
+.timed-background-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 20, 23, 0.2);
+}
+
 .program-bar {
   position: absolute;
   top: 24px;
@@ -727,6 +755,100 @@ h2 {
   color: var(--ink);
   font-size: 12px;
   text-align: right;
+}
+
+.timed-background-control {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.timed-background-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.timed-background-header span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.timed-background-header button {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.timed-background-list {
+  display: grid;
+  gap: 8px;
+}
+
+.timed-background-empty {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.timed-background-item {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) repeat(2, minmax(72px, auto)) minmax(130px, auto) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: #fbfcfa;
+}
+
+.timed-background-name {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timed-background-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.timed-background-field input[type="number"] {
+  width: 62px;
+  min-height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0 5px;
+  color: var(--ink);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: right;
+}
+
+.timed-background-field input[type="range"] {
+  width: 86px;
+  accent-color: var(--teal);
+}
+
+.timed-background-remove {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 8px;
 }
 
 .scrubber {

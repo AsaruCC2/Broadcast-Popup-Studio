@@ -21,6 +21,7 @@ const backgroundMode = normalizeBackgroundMode(process.env.BACKGROUND_MODE || "g
 const backgroundColor = normalizeHexColor(process.env.BACKGROUND_COLOR || "#202124");
 const backgroundScale = normalizeBackgroundScale(process.env.BACKGROUND_SCALE || 100);
 const backgroundImagePath = resolve(root, process.env.BACKGROUND_IMAGE || "input/background.png");
+const timedBackgrounds = normalizeTimedBackgrounds(process.env.TIMED_BACKGROUNDS || "[]");
 const shouldReportProgress = process.env.RENDER_PROGRESS === "1";
 const fontsDir = findFontsDir();
 const subtitleFontName = findSubtitleFontName();
@@ -63,7 +64,7 @@ if (lines.length === 0) {
 }
 
 const renderDataPath = resolve(dataRoot, "output/render-lines.json");
-writeFileSync(renderDataPath, JSON.stringify({lines, width, height, fps, subtitleLead, subtitleStyle, backgroundMode, backgroundColor, backgroundScale}, null, 2), "utf8");
+writeFileSync(renderDataPath, JSON.stringify({lines, width, height, fps, subtitleLead, subtitleStyle, backgroundMode, backgroundColor, backgroundScale, timedBackgrounds}, null, 2), "utf8");
 const assPath = resolve(dataRoot, "output/render-popup.ass");
 writeFileSync(assPath, buildAss(lines, {width, height, subtitleLead, subtitleStyle}), "utf8");
 
@@ -83,15 +84,18 @@ console.log(`Subtitle lead: ${subtitleLead.toFixed(1)}s`);
 console.log(`Subtitle style: ${subtitleStyle}`);
 console.log(`Background: ${backgroundMode}`);
 console.log(`Background scale: ${backgroundScale}%`);
+console.log(`Timed backgrounds: ${timedBackgrounds.length}`);
 console.log(`Duration: ${duration.toFixed(2)}s`);
 console.log(`FFmpeg: ${ffmpegPath}`);
 console.log(`Output: ${relative(outputPath)}`);
 console.log("Rendering...");
 
 const renderInput = buildVideoInputArgs();
+const visualInputCount = 1 + timedBackgrounds.length;
+const visualFilter = buildVisualFilter();
 const filter = [
-  `${buildBackgroundFilter()}[wavebg]`,
-  `[wavebg]ass=${escapeFilterPath(assPath)}:fontsdir=${escapeFilterPath(fontsDir)}[v]`,
+  ...visualFilter.filters,
+  `[${visualFilter.outputLabel}]ass=${escapeFilterPath(assPath)}:fontsdir=${escapeFilterPath(fontsDir)}[v]`,
 ].join(";");
 
 const result = await runFfmpeg(
@@ -112,7 +116,7 @@ const result = await runFfmpeg(
     "-map",
     "[v]",
     "-map",
-    "1:a",
+    `${visualInputCount}:a`,
     "-c:v",
     "libx264",
     "-preset",
@@ -317,23 +321,67 @@ function getAudioDuration(ffmpeg, audio) {
 }
 
 function buildVideoInputArgs() {
+  const args = [];
+
   if (backgroundMode === "image" && existsSync(backgroundImagePath)) {
-    return [
+    args.push(
       "-loop",
       "1",
       "-framerate",
       String(fps),
       "-i",
       backgroundImagePath,
-    ];
+    );
+  } else {
+    args.push(
+      "-f",
+      "lavfi",
+      "-i",
+      `color=c=${hexToFfmpegColor(backgroundMode === "color" ? backgroundColor : "#202124")}:s=${width}x${height}:r=${fps}:d=${duration.toFixed(3)}`,
+    );
   }
 
-  return [
-    "-f",
-    "lavfi",
-    "-i",
-    `color=c=${hexToFfmpegColor(backgroundMode === "color" ? backgroundColor : "#202124")}:s=${width}x${height}:r=${fps}:d=${duration.toFixed(3)}`,
-  ];
+  for (const item of timedBackgrounds) {
+    args.push(
+      "-loop",
+      "1",
+      "-framerate",
+      String(fps),
+      "-i",
+      item.path,
+    );
+  }
+
+  return args;
+}
+
+function buildVisualFilter() {
+  const filters = [`${buildBackgroundFilter()}[basebg]`];
+  let currentLabel = "basebg";
+
+  timedBackgrounds.forEach((item, index) => {
+    const imageLabel = `timedbg${index}`;
+    const outputLabel = `timedmix${index}`;
+    const fade = Math.min(0.45, Math.max(0.15, (item.end - item.start) / 3));
+    const fadeOutStart = Math.max(item.start, item.end - fade);
+    const inputIndex = 1 + index;
+    filters.push(
+      `[${inputIndex}:v]${[
+        buildTimedBackgroundFitFilters(item.scale),
+        "setsar=1",
+        "drawbox=x=0:y=0:w=iw:h=ih:color=black@0.20:t=fill",
+        "format=rgba",
+        `fade=t=in:st=${item.start.toFixed(3)}:d=${fade.toFixed(3)}:alpha=1`,
+        `fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fade.toFixed(3)}:alpha=1`,
+      ].join(",")}[${imageLabel}]`
+    );
+    filters.push(
+      `[${currentLabel}][${imageLabel}]overlay=0:0:enable='between(t,${item.start.toFixed(3)},${item.end.toFixed(3)})'[${outputLabel}]`
+    );
+    currentLabel = outputLabel;
+  });
+
+  return {filters, outputLabel: currentLabel};
 }
 
 function buildBackgroundFilter() {
@@ -354,6 +402,30 @@ function buildBackgroundFilter() {
   }
 
   return `[0:v]drawgrid=w=64:h=64:t=1:c=0xFFFFFF12,${signal}`;
+}
+
+function buildTimedBackgroundFitFilters(scale) {
+  const factor = normalizeBackgroundScale(scale) / 100;
+  const base = [
+    `scale=${width}:${height}:force_original_aspect_ratio=increase`,
+    `crop=${width}:${height}`,
+  ];
+
+  if (factor === 1) return base.join(",");
+
+  if (factor > 1) {
+    return [
+      ...base,
+      `scale=iw*${factor.toFixed(2)}:ih*${factor.toFixed(2)}`,
+      `crop=${width}:${height}`,
+    ].join(",");
+  }
+
+  return [
+    ...base,
+    `scale=iw*${factor.toFixed(2)}:ih*${factor.toFixed(2)}`,
+    `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black@0`,
+  ].join(",");
 }
 
 function buildImageFitFilters() {
@@ -615,6 +687,35 @@ function normalizeHexColor(value) {
 function normalizeBackgroundScale(value) {
   const scale = Number(value);
   return Number.isFinite(scale) ? clamp(Math.round(scale), 80, 220) : 100;
+}
+
+function normalizeTimedBackgrounds(value) {
+  let items = [];
+  try {
+    items = JSON.parse(String(value || "[]"));
+  } catch {
+    items = [];
+  }
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .map((item) => {
+      const start = Number(item?.start);
+      const end = Number(item?.end);
+      const relativePath = String(item?.path || "").replace(/^\.\//, "");
+      const path = /^input\/timed-background-[^/]+\.(png|jpe?g|webp)$/i.test(relativePath)
+        ? resolve(dataRoot, relativePath)
+        : "";
+
+      return {
+        path,
+        start: Number.isFinite(start) ? Math.max(0, Math.round(start * 10) / 10) : 0,
+        end: Number.isFinite(end) ? Math.max(0, Math.round(end * 10) / 10) : 0,
+        scale: normalizeBackgroundScale(item?.scale),
+      };
+    })
+    .filter((item) => item.path && existsSync(item.path) && item.end > item.start)
+    .slice(0, 12);
 }
 
 function hexToFfmpegColor(value) {

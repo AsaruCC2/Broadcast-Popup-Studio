@@ -44,6 +44,9 @@ const audioFileButton = document.querySelector("#audioFileButton");
 const audioInput = document.querySelector("#audioInput");
 const backgroundImageInput = document.querySelector("#backgroundImageInput");
 const backgroundImageButton = document.querySelector("#backgroundImageButton");
+const timedBackgroundInput = document.querySelector("#timedBackgroundInput");
+const timedBackgroundButton = document.querySelector("#timedBackgroundButton");
+const timedBackgroundList = document.querySelector("#timedBackgroundList");
 const backgroundColorInput = document.querySelector("#backgroundColorInput");
 const backgroundScaleInput = document.querySelector("#backgroundScaleInput");
 const backgroundScaleValue = document.querySelector("#backgroundScaleValue");
@@ -51,6 +54,7 @@ const timedTextFileInput = document.querySelector("#timedTextFileInput");
 const timedTextInput = document.querySelector("#timedTextInput");
 const sourcePanel = document.querySelector(".source-panel");
 const popupLayer = document.querySelector("#popupLayer");
+const timedBackgroundLayer = document.querySelector("#timedBackgroundLayer");
 const stage = document.querySelector("#stage");
 const lineList = document.querySelector("#lineList");
 const lineCount = document.querySelector("#lineCount");
@@ -117,6 +121,13 @@ const I18N = {
     "background.colorPicker": "背景色",
     "background.uploadImage": "上傳背景圖",
     "background.imageSize": "圖片大小",
+    "timedBackground.label": "定時背景",
+    "timedBackground.add": "加入圖片",
+    "timedBackground.empty": "尚未加入定時背景",
+    "timedBackground.start": "開始",
+    "timedBackground.end": "結束",
+    "timedBackground.size": "大小",
+    "timedBackground.remove": "刪除",
     "subtitleStyle.label": "字幕風格",
     "subtitleStyle.card": "廣播卡片",
     "subtitleStyle.note": "彈窗便條",
@@ -156,6 +167,9 @@ const I18N = {
     "status.importedCsv": "已匯入 CSV：{name}（{count} 句）",
     "status.chooseImage": "請選擇 PNG / JPG / WebP 圖片",
     "status.importedBackground": "已匯入背景圖：{name}",
+    "status.importedTimedBackground": "已加入定時背景：{name}",
+    "status.timedBackgroundSaving": "正在儲存定時背景圖片",
+    "status.timedBackgroundRemoved": "已刪除定時背景",
     "status.audioBlocked": "瀏覽器阻擋了音訊播放",
     "status.fullModeSave": "請雙擊 open-studio.command 開啟完整功能後再儲存",
     "status.csvSaved": "已儲存 input/script.csv",
@@ -238,6 +252,13 @@ const I18N = {
     "background.colorPicker": "背景色",
     "background.uploadImage": "背景画像をアップロード",
     "background.imageSize": "画像サイズ",
+    "timedBackground.label": "時間指定背景",
+    "timedBackground.add": "画像を追加",
+    "timedBackground.empty": "時間指定背景はまだありません",
+    "timedBackground.start": "開始",
+    "timedBackground.end": "終了",
+    "timedBackground.size": "サイズ",
+    "timedBackground.remove": "削除",
     "subtitleStyle.label": "字幕スタイル",
     "subtitleStyle.card": "ラジオカード",
     "subtitleStyle.note": "ポップアップ付箋",
@@ -277,6 +298,9 @@ const I18N = {
     "status.importedCsv": "CSV を読み込みました：{name}（{count} 行）",
     "status.chooseImage": "PNG / JPG / WebP 画像を選択してください",
     "status.importedBackground": "背景画像を読み込みました：{name}",
+    "status.importedTimedBackground": "時間指定背景を追加しました：{name}",
+    "status.timedBackgroundSaving": "時間指定背景画像を保存しています",
+    "status.timedBackgroundRemoved": "時間指定背景を削除しました",
     "status.audioBlocked": "ブラウザが音声再生をブロックしました",
     "status.fullModeSave": "保存するには open-studio.command で完全機能を開いてください",
     "status.csvSaved": "input/script.csv を保存しました",
@@ -359,6 +383,13 @@ const I18N = {
     "background.colorPicker": "Color",
     "background.uploadImage": "Upload Background",
     "background.imageSize": "Image size",
+    "timedBackground.label": "Timed background",
+    "timedBackground.add": "Add image",
+    "timedBackground.empty": "No timed backgrounds yet",
+    "timedBackground.start": "Start",
+    "timedBackground.end": "End",
+    "timedBackground.size": "Size",
+    "timedBackground.remove": "Remove",
     "subtitleStyle.label": "Subtitle style",
     "subtitleStyle.card": "Radio card",
     "subtitleStyle.note": "Popup note",
@@ -398,6 +429,9 @@ const I18N = {
     "status.importedCsv": "Imported CSV: {name} ({count} lines)",
     "status.chooseImage": "Choose a PNG / JPG / WebP image",
     "status.importedBackground": "Imported background: {name}",
+    "status.importedTimedBackground": "Added timed background: {name}",
+    "status.timedBackgroundSaving": "Saving timed background image",
+    "status.timedBackgroundRemoved": "Removed timed background",
     "status.audioBlocked": "The browser blocked audio playback",
     "status.fullModeSave": "Open the full app with open-studio.command before saving",
     "status.csvSaved": "Saved input/script.csv",
@@ -490,6 +524,9 @@ let activeIndex = -1;
 let audioReady = false;
 let audioObjectUrl = "";
 let backgroundImageObjectUrl = "";
+let timedBackgrounds = [];
+let timedBackgroundSerial = 0;
+const timedBackgroundSaveTasks = new Set();
 let activeRenderJobId = "";
 let renderRunning = false;
 let statusState = {key: "status.initial", params: {}};
@@ -594,6 +631,38 @@ backgroundImageInput.addEventListener("change", async (event) => {
   if (!file) return;
   await importBackgroundImage(file);
   backgroundImageInput.value = "";
+});
+
+timedBackgroundButton.addEventListener("click", () => {
+  timedBackgroundInput.click();
+});
+
+timedBackgroundInput.addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  await addTimedBackgroundImage(file);
+  timedBackgroundInput.value = "";
+});
+
+timedBackgroundList.addEventListener("input", (event) => {
+  const id = event.target.dataset.id;
+  const field = event.target.dataset.field;
+  if (field !== "scale") return;
+  if (!id || !field) return;
+  updateTimedBackground(id, field, event.target.value);
+});
+
+timedBackgroundList.addEventListener("change", (event) => {
+  const id = event.target.dataset.id;
+  const field = event.target.dataset.field;
+  if (!id || !field) return;
+  updateTimedBackground(id, field, event.target.value);
+});
+
+timedBackgroundList.addEventListener("click", (event) => {
+  const id = event.target.dataset.removeTimedBackground;
+  if (!id) return;
+  removeTimedBackground(id);
 });
 
 convertButton.addEventListener("click", convertTimedText);
@@ -712,6 +781,7 @@ setBackgroundScale(backgroundScale, false);
 setBackgroundMode(backgroundMode, false);
 setSubtitleStyle(subtitleStyle, false);
 setLanguage(currentLanguage, false);
+renderTimedBackgroundList();
 syncPreviewScale();
 window.addEventListener("resize", syncPreviewScale);
 if ("ResizeObserver" in window) {
@@ -768,6 +838,7 @@ function applyTranslations() {
   statusText.textContent = resolveTextState(statusState);
   sourceStatus.textContent = resolveTextState(sourceStatusState);
   renderTimeline();
+  renderTimedBackgroundList();
 
   if (!renderProgress.classList.contains("is-hidden")) {
     setRenderProgress(lastRenderProgressPayload);
@@ -1087,6 +1158,160 @@ async function importBackgroundImage(file) {
   await saveBackgroundToProject(file);
 }
 
+async function addTimedBackgroundImage(file) {
+  if (!isBackgroundImageFile(file)) {
+    setStatus("status.chooseImage");
+    return;
+  }
+
+  const start = getDefaultTimedBackgroundStart();
+  const item = {
+    id: `timed-bg-${Date.now()}-${timedBackgroundSerial += 1}`,
+    name: file.name,
+    start,
+    end: Math.min(getDuration(), start + 8),
+    scale: 100,
+    path: "",
+    url: URL.createObjectURL(file),
+    objectUrl: true,
+  };
+  if (item.end <= item.start) item.end = item.start + 8;
+
+  timedBackgrounds.push(item);
+  renderTimedBackgroundList();
+  renderFrame();
+  setStatus("status.importedTimedBackground", {name: file.name});
+  const saveTask = saveTimedBackgroundToProject(item, file)
+    .finally(() => timedBackgroundSaveTasks.delete(saveTask));
+  timedBackgroundSaveTasks.add(saveTask);
+  await saveTask;
+}
+
+function getDefaultTimedBackgroundStart() {
+  const activeLine = lines.find((line) => currentTime >= line.start && currentTime <= line.end);
+  if (activeLine) return roundTenths(activeLine.start);
+  return roundTenths(currentTime);
+}
+
+async function saveTimedBackgroundToProject(item, file) {
+  try {
+    const response = await fetch(`./api/save-timed-background?name=${encodeURIComponent(file.name)}`, {
+      method: "POST",
+      body: file
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || t("status.backgroundSaveFailed"));
+    item.path = `./${payload.path}?t=${Date.now()}`;
+    item.renderPath = payload.path;
+    if (item.objectUrl && item.url) URL.revokeObjectURL(item.url);
+    item.url = item.path;
+    item.objectUrl = false;
+    renderTimedBackgroundList();
+    renderFrame();
+  } catch {
+    setStatus("status.backgroundPreviewOnly");
+  }
+}
+
+async function waitForTimedBackgroundSaves() {
+  if (timedBackgroundSaveTasks.size === 0) return;
+  setStatus("status.timedBackgroundSaving");
+  await Promise.allSettled([...timedBackgroundSaveTasks]);
+}
+
+function updateTimedBackground(id, field, value) {
+  const item = timedBackgrounds.find((background) => background.id === id);
+  if (!item) return;
+
+  if (field === "start") {
+    item.start = roundTenths(Math.max(0, Number(value) || 0));
+    if (item.end <= item.start) item.end = roundTenths(item.start + 0.5);
+  } else if (field === "end") {
+    item.end = roundTenths(Math.max(0, Number(value) || 0));
+    if (item.end <= item.start) item.start = roundTenths(Math.max(0, item.end - 0.5));
+  } else if (field === "scale") {
+    item.scale = normalizeBackgroundScale(value);
+  }
+
+  renderTimedBackgroundList();
+  renderFrame();
+}
+
+function removeTimedBackground(id) {
+  const item = timedBackgrounds.find((background) => background.id === id);
+  if (item?.objectUrl && item.url) URL.revokeObjectURL(item.url);
+  timedBackgrounds = timedBackgrounds.filter((background) => background.id !== id);
+  renderTimedBackgroundList();
+  renderFrame();
+  setStatus("status.timedBackgroundRemoved");
+}
+
+function renderTimedBackgroundList() {
+  if (!timedBackgroundList) return;
+
+  if (timedBackgrounds.length === 0) {
+    timedBackgroundList.innerHTML = `<div class="timed-background-empty">${escapeHtml(t("timedBackground.empty"))}</div>`;
+    return;
+  }
+
+  timedBackgroundList.innerHTML = timedBackgrounds.map((item) => `
+    <div class="timed-background-item">
+      <div class="timed-background-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+      <label class="timed-background-field">
+        <span>${escapeHtml(t("timedBackground.start"))}</span>
+        <input data-id="${escapeHtml(item.id)}" data-field="start" type="number" min="0" step="0.1" value="${formatSecondsInput(item.start)}" />
+      </label>
+      <label class="timed-background-field">
+        <span>${escapeHtml(t("timedBackground.end"))}</span>
+        <input data-id="${escapeHtml(item.id)}" data-field="end" type="number" min="0" step="0.1" value="${formatSecondsInput(item.end)}" />
+      </label>
+      <label class="timed-background-field">
+        <span>${escapeHtml(t("timedBackground.size"))}</span>
+        <input data-id="${escapeHtml(item.id)}" data-field="scale" type="range" min="80" max="220" step="5" value="${item.scale}" />
+        <span>${item.scale}%</span>
+      </label>
+      <button class="timed-background-remove" type="button" data-remove-timed-background="${escapeHtml(item.id)}" aria-label="${escapeHtml(t("timedBackground.remove"))}">×</button>
+    </div>
+  `).join("");
+}
+
+function updateTimedBackgroundPreview() {
+  const active = getActiveTimedBackground(currentTime);
+  if (!active?.url) {
+    timedBackgroundLayer.style.opacity = "0";
+    timedBackgroundLayer.style.setProperty("--timed-bg-image", "none");
+    return;
+  }
+
+  timedBackgroundLayer.style.setProperty("--timed-bg-image", `url("${active.url}")`);
+  timedBackgroundLayer.style.setProperty("--timed-bg-scale", String((active.scale || 100) / 100));
+  timedBackgroundLayer.style.opacity = String(getTimedBackgroundOpacity(active, currentTime));
+}
+
+function getActiveTimedBackground(time) {
+  return [...timedBackgrounds]
+    .reverse()
+    .find((background) => time >= background.start && time <= background.end);
+}
+
+function getRenderableTimedBackgrounds() {
+  return timedBackgrounds
+    .filter((item) => item.renderPath && item.end > item.start)
+    .map((item) => ({
+      path: item.renderPath,
+      start: roundTenths(item.start),
+      end: roundTenths(item.end),
+      scale: normalizeBackgroundScale(item.scale),
+    }));
+}
+
+function getTimedBackgroundOpacity(item, time) {
+  const fade = Math.min(0.45, Math.max(0.15, (item.end - item.start) / 3));
+  const fadeIn = clamp((time - item.start) / fade, 0, 1);
+  const fadeOut = clamp((item.end - time) / fade, 0, 1);
+  return Math.min(fadeIn, fadeOut, 1);
+}
+
 function hasSubtitleSourceFile(items) {
   return [...(items || [])].some((item) => item.kind === "file");
 }
@@ -1168,6 +1393,7 @@ function renderFrame() {
   const index = lines.findIndex((line) => subtitleTime >= line.start && subtitleTime <= line.end);
   const line = index >= 0 ? lines[index] : null;
 
+  updateTimedBackgroundPreview();
   renderPopup(line);
   updateWaveform(line);
 
@@ -1359,6 +1585,7 @@ async function renderVideo() {
   videoLink.classList.add("is-hidden");
 
   try {
+    await waitForTimedBackgroundSaves();
     await saveCsvToProject(false);
     const response = await fetch("./api/render", {
       method: "POST",
@@ -1370,6 +1597,7 @@ async function renderVideo() {
         backgroundMode,
         backgroundColor,
         backgroundScale,
+        timedBackgrounds: getRenderableTimedBackgrounds(),
         subtitleStyle
       })
     });
@@ -1930,6 +2158,14 @@ function formatCsvTime(seconds) {
     String(minutes).padStart(2, "0"),
     `${String(secs).padStart(2, "0")}.${String(ms).padStart(3, "0")}`
   ].join(":");
+}
+
+function formatSecondsInput(seconds) {
+  return roundTenths(seconds).toFixed(1).replace(/\.0$/, "");
+}
+
+function roundTenths(value) {
+  return Math.round((Number(value) || 0) * 10) / 10;
 }
 
 function getDuration() {
