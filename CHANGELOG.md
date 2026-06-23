@@ -1,5 +1,67 @@
 # 更新履歴 / Changelog / 更新日志
 
+## 2026-06-23 - 開発メモ / Development Notes / 开发记录
+
+### 日本語
+
+現在の開発状況と、次のデスクトップ版更新に向けた作業メモです。
+
+主な内容：
+
+- 時間指定背景画像を追加し、特定の時間帯だけ背景画像を表示できるようにした
+- 時間指定背景の書き出し処理を最適化し、画像が表示される区間だけ処理するように調整
+- FFmpeg の実際の処理速度を使って、書き出し残り時間の推定を改善
+- README に現在の macOS / Windows テスト状況を追記
+- macOS 版は基本的な制作フローに利用可能。ただし、時間指定背景を多数追加した場合は書き出しが遅くなる場合がある
+- Windows 版は一部環境で問題を確認中。テスト機材の制限により、修正と検証に時間がかかる見込み
+- 紹介動画の案内文を「近日公開予定」に更新
+- 今後の軽量テスト用として、ローカルブラウザ版を最新の開発版に同期
+- ローカルブラウザ版に、現在秒数表示と秒数指定ジャンプ機能を追加。時間指定背景の開始・終了位置を決めやすくするための改善
+
+メモ：
+
+この段階では、細かい UI 改善はまずローカルブラウザ版で検証し、ある程度まとまってからデスクトップ版に反映する方針。
+
+### English
+
+Current development notes toward the next desktop app update.
+
+Highlights:
+
+- Added timed background images that appear only during selected time ranges
+- Optimized timed background rendering so each image is processed only for the time range where it appears
+- Improved estimated remaining export time by using FFmpeg's reported processing speed
+- Updated the README with the current macOS / Windows testing status
+- The macOS build can be used for the core creation workflow, but exports may slow down when many timed background images are added
+- The Windows build has known issues under investigation; fixes and verification may take longer because Windows test device access is limited
+- Updated the introduction video section to say that videos will be published soon
+- Synced the local browser version with the latest development version for lightweight testing
+- Added a current-seconds display and jump-to-time control in the local browser version, making it easier to choose start and end times for timed backgrounds
+
+Note:
+
+Small UI improvements will be tested first in the local browser version, then rolled into the desktop app after enough changes accumulate.
+
+### 中文
+
+这是面向下一次桌面版更新的开发记录。
+
+主要内容：
+
+- 增加定时背景图片功能，可以让背景图只在指定时间段出现
+- 优化定时背景导出逻辑，让每张图片只在实际显示的时间段参与处理
+- 使用 FFmpeg 实际处理速度改进导出剩余时间估算
+- 更新 README，说明目前 macOS / Windows 的测试状态
+- macOS 版可以完成主要制作流程，但如果加入较多定时背景图片，导出可能会变慢
+- Windows 版目前有部分问题正在确认中；由于测试设备有限，修复和验证会花费更长时间
+- 将介绍视频部分更新为“不日公开，敬请期待”
+- 将本地浏览器版同步到最新开发状态，作为以后轻量测试用版本
+- 本地浏览器版新增当前秒数显示和按秒数跳转功能，方便设置定时背景的开始和结束时间
+
+记录：
+
+之后小 UI 改动会先在本地浏览器版测试，攒到一定程度后再合并进桌面版并打包更新。
+
 ## v0.1.0 - デスクトップアプリプレビュー / Desktop App Preview / 桌面软件预览版
 
 ### 日本語
