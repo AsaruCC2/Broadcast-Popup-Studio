@@ -227,6 +227,7 @@ function handleFfmpegProgressLine(line, state, totalDuration, onProgress) {
   const outTime = parseFfmpegOutTime(state.out_time)
     || parseFfmpegMicroseconds(state.out_time_us)
     || parseFfmpegMicroseconds(state.out_time_ms);
+  const speed = parseFfmpegSpeed(state.speed);
   const progress = value === "end"
     ? 1
     : clamp(outTime / Math.max(totalDuration, 0.001), 0, 0.999);
@@ -235,6 +236,7 @@ function handleFfmpegProgressLine(line, state, totalDuration, onProgress) {
     progress,
     outTimeSeconds: outTime,
     durationSeconds: totalDuration,
+    speed,
   });
 }
 
@@ -248,6 +250,13 @@ function parseFfmpegOutTime(value) {
 function parseFfmpegMicroseconds(value) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number / 1_000_000 : 0;
+}
+
+function parseFfmpegSpeed(value) {
+  const match = String(value || "").trim().match(/^(\d+(?:\.\d+)?)x$/);
+  if (!match) return null;
+  const speed = Number(match[1]);
+  return Number.isFinite(speed) && speed > 0 ? speed : null;
 }
 
 function reportProgress(payload) {
@@ -347,6 +356,8 @@ function buildVideoInputArgs() {
       "1",
       "-framerate",
       String(fps),
+      "-t",
+      getTimedBackgroundDuration(item).toFixed(3),
       "-i",
       item.path,
     );
@@ -362,8 +373,9 @@ function buildVisualFilter() {
   timedBackgrounds.forEach((item, index) => {
     const imageLabel = `timedbg${index}`;
     const outputLabel = `timedmix${index}`;
-    const fade = Math.min(0.45, Math.max(0.15, (item.end - item.start) / 3));
-    const fadeOutStart = Math.max(item.start, item.end - fade);
+    const clipDuration = getTimedBackgroundDuration(item);
+    const fade = Math.min(0.45, Math.max(0.15, clipDuration / 3));
+    const fadeOutStart = Math.max(0, clipDuration - fade);
     const inputIndex = 1 + index;
     filters.push(
       `[${inputIndex}:v]${[
@@ -371,17 +383,22 @@ function buildVisualFilter() {
         "setsar=1",
         "drawbox=x=0:y=0:w=iw:h=ih:color=black@0.20:t=fill",
         "format=rgba",
-        `fade=t=in:st=${item.start.toFixed(3)}:d=${fade.toFixed(3)}:alpha=1`,
+        `fade=t=in:st=0:d=${fade.toFixed(3)}:alpha=1`,
         `fade=t=out:st=${fadeOutStart.toFixed(3)}:d=${fade.toFixed(3)}:alpha=1`,
+        `setpts=PTS-STARTPTS+${item.start.toFixed(3)}/TB`,
       ].join(",")}[${imageLabel}]`
     );
     filters.push(
-      `[${currentLabel}][${imageLabel}]overlay=0:0:enable='between(t,${item.start.toFixed(3)},${item.end.toFixed(3)})'[${outputLabel}]`
+      `[${currentLabel}][${imageLabel}]overlay=x=0:y=0:eof_action=pass:repeatlast=0:enable='between(t,${item.start.toFixed(3)},${item.end.toFixed(3)})'[${outputLabel}]`
     );
     currentLabel = outputLabel;
   });
 
   return {filters, outputLabel: currentLabel};
+}
+
+function getTimedBackgroundDuration(item) {
+  return Math.max(0.1, item.end - item.start);
 }
 
 function buildBackgroundFilter() {

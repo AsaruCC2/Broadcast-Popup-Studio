@@ -334,6 +334,8 @@ function startRenderJob(options = {}) {
     progress: 0,
     durationSeconds: null,
     outTimeSeconds: 0,
+    renderSpeed: null,
+    remainingSeconds: null,
     startedAt: Date.now(),
     endedAt: null,
     error: "",
@@ -449,12 +451,47 @@ function updateRenderProgress(job, payloadText) {
     const progress = Number(payload.progress);
     const outTime = Number(payload.outTimeSeconds);
     const duration = Number(payload.durationSeconds);
+    const speed = Number(payload.speed);
     if (Number.isFinite(progress)) job.progress = Math.min(1, Math.max(0, progress));
     if (Number.isFinite(outTime)) job.outTimeSeconds = outTime;
     if (Number.isFinite(duration) && duration > 0) job.durationSeconds = duration;
+    if (Number.isFinite(speed) && speed > 0) {
+      job.renderSpeed = Number.isFinite(job.renderSpeed)
+        ? job.renderSpeed * 0.7 + speed * 0.3
+        : speed;
+    }
+    updateRemainingEstimate(job);
   } catch {
     appendRenderLog(job, `PROGRESS ${payloadText}\n`);
   }
+}
+
+function updateRemainingEstimate(job) {
+  const estimate = calculateRemainingSeconds(job);
+  if (!Number.isFinite(estimate)) return;
+
+  if (!Number.isFinite(job.remainingSeconds)) {
+    job.remainingSeconds = estimate;
+    return;
+  }
+
+  const weight = estimate < job.remainingSeconds ? 0.35 : 0.2;
+  job.remainingSeconds = job.remainingSeconds * (1 - weight) + estimate * weight;
+}
+
+function calculateRemainingSeconds(job) {
+  const duration = Number(job.durationSeconds);
+  const outTime = Number(job.outTimeSeconds);
+  const speed = Number(job.renderSpeed);
+
+  if (Number.isFinite(duration) && duration > 0 && Number.isFinite(outTime) && Number.isFinite(speed) && speed > 0.001) {
+    return Math.max(0, (duration - outTime) / speed);
+  }
+
+  const progress = Math.min(1, Math.max(0, Number(job.progress) || 0));
+  const elapsedSeconds = (Date.now() - job.startedAt) / 1000;
+  if (progress <= 0.03 || elapsedSeconds < 10) return null;
+  return Math.max(0, elapsedSeconds * (1 - progress) / progress);
 }
 
 function cancelRenderJob(job) {
@@ -493,7 +530,7 @@ function serializeRenderJob(job) {
   const elapsedSeconds = ((job.endedAt || Date.now()) - job.startedAt) / 1000;
   const progress = Math.min(1, Math.max(0, Number(job.progress) || 0));
   const remainingSeconds = job.state === "running" && progress > 0.01
-    ? Math.max(0, elapsedSeconds * (1 - progress) / progress)
+    ? job.remainingSeconds
     : null;
 
   return {
@@ -506,6 +543,7 @@ function serializeRenderJob(job) {
     remainingSeconds,
     durationSeconds: job.durationSeconds,
     outTimeSeconds: job.outTimeSeconds,
+    renderSpeed: job.renderSpeed,
     path: job.path || "",
     error: job.error || "",
   };
