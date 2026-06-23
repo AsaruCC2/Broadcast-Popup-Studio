@@ -30,6 +30,10 @@ Broadcast Popup Studio 是一款桌面软件，用来把音频文件和带时间
 現在のビルドはコード署名を行っていません。初回起動時に macOS または Windows のセキュリティ警告が表示される場合があります。
 各プラットフォームのテスト版は、更新タイミングが異なる場合があります。
 
+現在、macOS 版を中心に開発・検証しています。macOS 版は基本的な制作フローに利用できますが、時間指定背景を多数追加した場合は書き出しに時間がかかることがあります。デスクトップ版のパフォーマンス改善は近日更新予定です。
+
+Windows 版には現在、一部の環境で確認中の問題があります。テスト機材の制限により修正と検証に時間がかかる場合があります。
+
 ### English
 
 The latest test build is available from GitHub Releases.
@@ -40,6 +44,10 @@ The latest test build is available from GitHub Releases.
 The current builds are not code-signed. macOS or Windows may show a security warning the first time the app is opened.
 Test builds for each platform may be updated on different schedules.
 
+Development and testing currently focus on the macOS build. The macOS build can be used for the core creation workflow, but exports may become slow when many timed background images are added. Desktop performance improvements are planned for an upcoming update.
+
+The Windows build currently has some known issues under investigation. Fixes and verification may take longer because Windows test device access is limited.
+
 ### 中文
 
 最新测试版可以从 GitHub Releases 下载。
@@ -49,6 +57,10 @@ Test builds for each platform may be updated on different schedules.
 
 当前构建还没有做代码签名。第一次打开时，macOS 或 Windows 可能会显示安全提醒。
 不同平台的测试包可能会按不同节奏更新。
+
+目前开发和测试会优先集中在 macOS 版。macOS 版可以完成主要制作流程，但如果加入较多定时背景图片，导出速度可能会变慢。桌面版性能优化会在近日更新。
+
+Windows 版目前有部分问题正在修复中。由于测试设备有限，修复和验证可能会花费更长时间。
 
 ## 主な機能 / Main Features / 主要功能
 
@@ -64,6 +76,7 @@ Test builds for each platform may be updated on different schedules.
 - 動画比率を `16:9` / `9:16` / `1:1` / `4:5` から選択
 - デフォルトのダークグリッド背景、単色背景、画像背景を選択
 - 背景画像の拡大率を調整
+- 指定した時間だけ表示される時間指定背景画像を追加
 - 字幕スタイルを `Broadcast Card` / `Popup Note` から選択
 - 書き出し中の進捗、残り時間、キャンセルを表示
 - 書き出し前に保存先を選択
@@ -81,6 +94,7 @@ Test builds for each platform may be updated on different schedules.
 - Choose video ratio: `16:9`, `9:16`, `1:1`, or `4:5`
 - Choose the default dark grid background, a solid color, or an image background
 - Adjust the scale of an imported background image
+- Add timed background images that appear only during selected time ranges
 - Choose subtitle style: `Broadcast Card` or `Popup Note`
 - Show export progress, estimated remaining time, and cancel control
 - Choose the output save location before export
@@ -98,6 +112,7 @@ Test builds for each platform may be updated on different schedules.
 - 支持选择视频比例：`16:9` / `9:16` / `1:1` / `4:5`
 - 支持默认深色网格背景、纯色背景、图片背景
 - 支持调整背景图片大小
+- 支持添加只在指定时间段显示的定时背景图片
 - 支持字幕样式：`广播卡片` / `弹窗便签`
 - 导出时显示进度、剩余时间，并支持中止导出
 - 导出前可以选择保存位置
@@ -218,6 +233,8 @@ Broadcast Popup Studio では、同じ音声と字幕から複数の見た目を
 
 背景は、デフォルトのダークグリッド、単色、画像から選択できます。画像背景は画面に合わせて表示され、必要に応じて拡大率を調整できます。
 
+また、特定の話題や場面に合わせて、指定した時間だけ表示される背景画像を追加できます。
+
 ### English
 
 Broadcast Popup Studio lets you try different visual directions from the same audio and subtitles.
@@ -229,6 +246,8 @@ Broadcast Popup Studio lets you try different visual directions from the same au
 
 The background can be the default dark grid, a solid color, or an imported image. Image backgrounds are fitted to the video canvas, and their scale can be adjusted.
 
+You can also add timed background images that appear only during selected moments, such as when a specific topic is being discussed.
+
 ### 中文
 
 Broadcast Popup Studio 可以让同一份音频和字幕尝试不同画面效果。
@@ -239,6 +258,8 @@ Broadcast Popup Studio 可以让同一份音频和字幕尝试不同画面效果
 - `4:5`：偏竖版社交平台视频
 
 背景可以选择默认深色网格、纯色，或导入图片。图片背景会适配画面，也可以继续调整显示大小。
+
+也可以添加只在指定时间段出现的定时背景图片，用来配合某个话题或片段。
 
 ## プライバシーとローカルファイル / Privacy And Local Files / 隐私与本机文件
 
@@ -422,15 +443,15 @@ broadcast-popup-studio/
 
 ### 日本語
 
-本日、日本語版と中国語版の紹介動画を公開予定です。
+紹介動画は近日公開予定です。公開までしばらくお待ちください。
 
 ### English
 
-Japanese and Chinese introduction videos are scheduled for release today.
+Introduction videos will be published soon. Stay tuned.
 
 ### 中文
 
-今日会发布中文和日文介绍视频。
+介绍视频不日公开，敬请期待。
 
 ## 更新履歴 / Changelog / 更新日志
 
